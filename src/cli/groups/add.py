@@ -73,16 +73,16 @@ class ContextWindowType(click.ParamType):
     type=click.Choice([
         'llm', 'vlm', 'whisper', 'qwen3_asr', 'kokoro',
         'qwen3_tts_custom_voice', 'qwen3_tts_voice_design', 'qwen3_tts_voice_clone',
-        'emb', 'rerank',
+        'emb', 'rerank', 'diffusion',
     ]),
     required=True,
-    help='Model type (llm, vlm, whisper, qwen3_asr, kokoro, qwen3_tts_custom_voice, qwen3_tts_voice_design, qwen3_tts_voice_clone, emb, rerank)')
+    help='Model type (llm, vlm, whisper, qwen3_asr, kokoro, qwen3_tts_custom_voice, qwen3_tts_voice_design, qwen3_tts_voice_clone, emb, rerank, diffusion)')
 @click.option('--device', '--d',
     required=True,
     help='Device(s) to load the model on.')
 @click.option("--runtime-config", "--rtc",
     default=None,
-    help='OpenVINO runtime configuration as JSON string (e.g., \'{"MODEL_DISTRIBUTION_POLICY": "PIPELINE_PARALLEL"}\').\nDocs: https://searchsavior.github.io/OpenArc/configure/#runtime_config')
+    help='OpenVINO runtime configuration as JSON string (e.g., \'{"MODEL_DISTRIBUTION_POLICY": "PIPELINE_PARALLEL"}\').')
 @click.option('--cache-dir', '--cd',
     required=False,
     default=None,

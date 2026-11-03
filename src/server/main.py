@@ -11,7 +11,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
+
 
 from src.server.deps import _registry
 from src.server.routes.openai import router as openai_router
@@ -21,30 +21,52 @@ logger = logging.getLogger(__name__)
 _access_logger = logging.getLogger("openarc.access")
 
 
-class RequestLoggingMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        start_time = time.time()
-        client_ip = request.client.host if request.client else "unknown"
+class RequestLoggingMiddleware:
+    """Plain ASGI wrapper, deliberately NOT a BaseHTTPMiddleware: base middleware
+    interposes its own receive queue and swallows the http.disconnect message,
+    which breaks handler-level is_disconnected() watchers — the mid-denoise cancel
+    on /v1/images/generations needs the raw receive stream to reach the route."""
 
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        method = scope.get("method", "")
+        path = scope.get("path", "")
+        client = scope.get("client")
+        client_ip = client[0] if client else "unknown"
+        start_time = time.time()
         _access_logger.info(
-            f"Request received: {request.method} {request.url.path} from {client_ip}"
+            f"Request received: {method} {path} from {client_ip}"
         )
 
+        status_code = None
+
+        async def send_wrapper(message):
+            nonlocal status_code
+            if message["type"] == "http.response.start" and status_code is None:
+                status_code = message.get("status")
+            await send(message)
+
         try:
-            response = await call_next(request)
-            process_time = time.time() - start_time
-            _access_logger.info(
-                f"Request completed: {request.method} {request.url.path} "
-                f"status={response.status_code} duration={process_time:.3f}s"
-            )
-            return response
+            await self.app(scope, receive, send_wrapper)
         except Exception as e:
             process_time = time.time() - start_time
             _access_logger.error(
-                f"Request failed: {request.method} {request.url.path} "
+                f"Request failed: {method} {path} "
                 f"error={str(e)} duration={process_time:.3f}s"
             )
             raise
+
+        process_time = time.time() - start_time
+        _access_logger.info(
+            f"Request completed: {method} {path} "
+            f"status={status_code} duration={process_time:.3f}s"
+        )
 
 
 @asynccontextmanager

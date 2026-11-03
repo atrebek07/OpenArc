@@ -34,3 +34,12 @@ dist/
 .scratchpad/
 .plans/
 /config.yaml
+# my/old docs (not part of PR)
+docs/my_docs/
+docs/old_docs/
+
+.maki/
+
+# ComfyUI-style output dir: keep the folder, ignore its contents
+output/*
+!output/output_goes_here.txt
